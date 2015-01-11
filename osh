@@ -6,7 +6,7 @@
 # james@da.ydrea.ms
 
 vrs='v0.1'
-lastchange='1/10/15'
+lastchange='1/11/15'
 
 echo -e "\n--> osh $vrs $lastchange <--"
 
@@ -16,8 +16,23 @@ OLD_PS3=$PS3
 
 nova image-list > imagelist.txt
 
+icount=0
+
 # the image ID is a 36-character string with dashes at indices 8, 13, 18 and 23
-imageids=$(sed -nE 's/.*([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < imagelist.txt)
+for id in $(sed -nE 's/.*([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < imagelist.txt); do
+  imageids[$icount]="$id"
+  imagestrings[$icount]=$(sed -nE "/$id/ s/.*$id \| ([a-zA-Z0-9\.\-]+) +\|.*$/\1/p" < imagelist.txt)
+  icount=$(($icount+1))
+done
+unset icount
+
+# for string in ${imagestrings[*]}; do
+  # echo $string
+# done
+
+# for id in ${imageids[*]}; do
+  # echo $id
+# done
 
 rm -P imagelist.txt
 
