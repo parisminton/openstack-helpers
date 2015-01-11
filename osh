@@ -14,8 +14,12 @@ OLD_PS3=$PS3
 
 ### BOOT AN INSTANCE ###
 
+nova image-list > imagelist.txt
+
 # the image ID is a 36-character string with dashes at indices 8, 13, 18 and 23
-# grep -E '[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
+imageids=$(sed -nE 's/.*([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < imagelist.txt)
+
+rm -P imagelist.txt
 
 function boot_ephemeral () {
   echo -e "--> Dotmatic says it's ephemeral."
@@ -29,11 +33,13 @@ if [ "$1" == "boot" ]; then
   if [ "$2" == "ephemeral" ]; then
     boottype="ephemeral"
     boot_ephemeral
+    # nova boot --poll --flavor FLAVORNAME --image IMAGESTRING --key-name KEYNAME SERVERNAME
   elif [ "$2" == "persistent" ]; then
     boottype="persistent"
     boot_persistent
+    # nova boot --poll --flavor FLAVORNAME --key-name KEYNAME --block-device source=DEVICESOURCE,id=SOURCEID,dest=DEVICETYPE,size=STORAGESIZE,shutdown=PRESERVE,bootindex=BOOTINDEX SERVERNAME
   else
-    echo -e "--> Will this be an ephemeral or a persistent instance? "
+    echo -e "\n--> Will this be an ephemeral or a persistent instance? "
     PS3=$'\n'"--> Instance type: "
     select boottype in "Ephemeral" "Persistent"; do
       case $boottype in
@@ -43,13 +49,29 @@ if [ "$1" == "boot" ]; then
     done
   fi
 
-  # nova boot --poll --flavor FLAVORNAME --image IMAGESTRING --key-name KEYNAME SERVERNAME
-
-  # nova boot --poll --flavor FLAVORNAME --key-name KEYNAME --block-device source=IMAGETYPE,id=IMAGEID,dest=DESTTYPE,size=STORAGESIZE,shutdown=preserve,bootindex=BOOTINDEX SERVERNAME
-
-  while [ -z $keyname ]; do
+  while [ -z "$keyname" ]; do
     echo -e ""
     read -p "--> Which key should this volume use? " keyname
+  done
+
+  echo -e "\n--> Create the block device from a ..."
+  PS3=$'\n'"--> Device source: "
+  select devicesource in "Volume" "Snapshot" "Image" "Blank"; do
+    case $devicesource in
+      Volume ) devicesource="volume"; break;;
+      Snapshot ) devicesource="snapshot"; break;;
+      Image ) devicesource="image"; break;;
+      Blank ) devicesource="blank"; break;;
+    esac
+  done
+
+  echo -e "\n--> Device type:"
+  PS3=$'\n'"--> Device type: "
+  select devicetype in "Volume" "Local"; do
+    case $devicetype in
+      Volume ) devicetype="volume"; break;;
+      Local ) devicetype="local"; break;;
+    esac
   done
 
   echo -e ""
@@ -57,16 +79,25 @@ if [ "$1" == "boot" ]; then
   if [ -z "$storagesize" ]; then
     storagesize="80"
   fi
-  while [[ ! $storagesize =~ ^[0-9]+$ ]]; do
+  while [[ ! "$storagesize" =~ ^[0-9]+$ ]]; do
     read -p "--> The storage size should be an integer. Default is 80 gigabytes: " storagesize
   done
 
-  while [ -z $bootindex ]; do
+  while [ -z "$bootindex" ]; do
     echo -e ""
     read -p "--> Boot index? (Enter 0 to boot from this volume.): " bootindex
   done
-  while [[ ! $bootindex =~ ^[0-9]+$ ]]; do
+  while [[ ! "$bootindex" =~ ^[0-9]+$ ]]; do
     read -p "--> The boot index should be an integer. (Enter 0 to boot from this volume.): " bootindex
+  done
+
+  echo -e "\n--> Preserve the volume when the instance is shut down?"
+  PS3=$'\n'"--> Preserve on shutdown? "
+  select preserve in "Yes" "No"; do
+    case $preserve in
+      Yes ) preserve="preserve"; break;;
+      No ) preserve="remove"; break;;
+    esac
   done
 
   while [ -z $servername ]; do
