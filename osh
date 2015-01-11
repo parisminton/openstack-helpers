@@ -26,14 +26,6 @@ for id in $(sed -nE 's/.*([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-
 done
 unset icount
 
-# for string in ${imagestrings[*]}; do
-  # echo $string
-# done
-
-# for id in ${imageids[*]}; do
-  # echo $id
-# done
-
 rm -P imagelist.txt
 
 function boot_ephemeral () {
@@ -69,7 +61,7 @@ if [ "$1" == "boot" ]; then
     read -p "--> Which key should this volume use? " keyname
   done
 
-  echo -e "\n--> Create the block device from a ..."
+  echo -e "\n--> Create the block device from a/an ..."
   PS3=$'\n'"--> Device source: "
   select devicesource in "Volume" "Snapshot" "Image" "Blank"; do
     case $devicesource in
@@ -80,7 +72,29 @@ if [ "$1" == "boot" ]; then
     esac
   done
 
-  echo -e "\n--> Device type:"
+  if [ $devicesource == "image" ]; then
+    icount=0
+    ilength=${#imagestrings[*]}
+    echo -e "\n--> Choose from your available images:"
+
+    while [ $icount -lt $ilength ]; do
+      echo -e "$(echo $(($icount+1)))) ${imagestrings[$icount]}"
+      icount=$(($icount+1))
+    done
+
+    echo -e ""
+    read -p "--> Device image: " imagechoice
+
+    while [[ ! "$imagechoice" =~ ^[1-9]+$ || "$imagechoice" -gt $ilength ]]; do
+      read -p "--> Enter an integer representing one of the $ilength choices above: " imagechoice
+    done
+
+    sourceid=${imageids[$(($imagechoice-1))]}
+    imagestring=${imagestrings[$(($imagechoice-1))]}
+    unset icount
+  fi
+
+  echo -e "\n--> Which type of device will it be?"
   PS3=$'\n'"--> Device type: "
   select devicetype in "Volume" "Local"; do
     case $devicetype in
