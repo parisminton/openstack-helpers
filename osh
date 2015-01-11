@@ -14,6 +14,7 @@ OLD_PS3=$PS3
 
 ### BOOT AN INSTANCE ###
 
+# fetch and parse available images
 nova image-list > imagelist.txt
 
 icount=0
@@ -27,6 +28,21 @@ done
 unset icount
 
 rm -P imagelist.txt
+
+# fetch and parse available flavors
+nova flavor-list > flavorlist.txt
+
+fcount=0
+
+# the flavor ID is a 3-digit integer
+for id in $(sed -nE 's/\| ([0-9]{3}) \|.*/\1/p' < flavorlist.txt); do
+  flavorids[$fcount]="$id"
+  flavorstrings[$fcount]=$(sed -nE "/$id/ s/.*$id \| ([a-z]+) +\|.*$/\1/p" < flavorlist.txt)
+  fcount=$(($fcount+1))
+done
+unset fcount
+
+rm -P flavorlist.txt
 
 function boot_ephemeral () {
   echo -e "--> Dotmatic says it's ephemeral."
