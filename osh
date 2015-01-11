@@ -11,23 +11,68 @@ lastchange='1/10/15'
 echo -e "\n--> osh $vrs $lastchange <--"
 
 OLD_PS3=$PS3
-PS3="?  "
 
-# boot an instance
+### BOOT AN INSTANCE ###
+
+# the image ID is a 36-character string with dashes at indices 8, 13, 18 and 23
+# grep -E '[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}'
+
+function boot_ephemeral () {
+  echo -e "--> Dotmatic says it's ephemeral."
+}
+
+function boot_persistent () {
+  echo -e "--> Julio Iglesias says it's persistent."
+}
+
 if [ "$1" == "boot" ]; then
   if [ "$2" == "ephemeral" ]; then
-    echo -e "It's ephemeral"
+    boottype="ephemeral"
+    boot_ephemeral
   elif [ "$2" == "persistent" ]; then
-    echo -e "It's persistent"
+    boottype="persistent"
+    boot_persistent
   else
-    echo -e "--> Will this be an ephemeral or a persistent instance?"
+    echo -e "--> Will this be an ephemeral or a persistent instance? "
+    PS3=$'\n'"--> Instance type: "
     select boottype in "Ephemeral" "Persistent"; do
       case $boottype in
-        Ephemeral ) boottype="ephemeral"; echo -e "Now it's $boottype"; break;;
-        Persistent ) boottype="persistent"; echo -e "Now it's $boottype"; exit;;
+        Ephemeral ) boottype="ephemeral"; break;;
+        Persistent ) boottype="persistent"; break;;
       esac
     done
   fi
+
+  # nova boot --poll --flavor FLAVORNAME --image IMAGESTRING --key-name KEYNAME SERVERNAME
+
+  # nova boot --poll --flavor FLAVORNAME --key-name KEYNAME --block-device source=IMAGETYPE,id=IMAGEID,dest=DESTTYPE,size=STORAGESIZE,shutdown=preserve,bootindex=BOOTINDEX SERVERNAME
+
+  while [ -z $keyname ]; do
+    echo -e ""
+    read -p "--> Which key should this volume use? " keyname
+  done
+
+  echo -e ""
+  read -p "--> How many gigabytes of storage? Default is 80: " storagesize
+  if [ -z "$storagesize" ]; then
+    storagesize="80"
+  fi
+  while [[ ! $storagesize =~ ^[0-9]+$ ]]; do
+    read -p "--> The storage size should be an integer. Default is 80 gigabytes: " storagesize
+  done
+
+  while [ -z $bootindex ]; do
+    echo -e ""
+    read -p "--> Boot index? (Enter 0 to boot from this volume.): " bootindex
+  done
+  while [[ ! $bootindex =~ ^[0-9]+$ ]]; do
+    read -p "--> The boot index should be an integer. (Enter 0 to boot from this volume.): " bootindex
+  done
+
+  while [ -z $servername ]; do
+    echo -e ""
+    read -p "--> What will you name this server? " servername
+  done
 fi
 
 PS3=$OLD_PS3
