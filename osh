@@ -37,7 +37,7 @@ fcount=0
 # the flavor ID is a 3-digit integer
 for id in $(sed -nE 's/\| ([0-9]{3}) \|.*/\1/p' < flavorlist.txt); do
   flavorids[$fcount]="$id"
-  flavorstrings[$fcount]=$(sed -nE "/$id/ s/.*$id \| ([a-z]+) +\|.*$/\1/p" < flavorlist.txt)
+  flavornames[$fcount]=$(sed -nE "/$id/ s/.*$id \| ([a-z]+) +\|.*$/\1/p" < flavorlist.txt)
   fcount=$(($fcount+1))
 done
 unset fcount
@@ -110,6 +110,26 @@ if [ "$1" == "boot" ]; then
     unset icount
   fi
 
+  fcount=0
+  flength=${#flavornames[*]}
+  echo -e "\n--> Choose from your available flavors:"
+
+  while [ $fcount -lt $flength ]; do
+    echo -e "$(echo $(($fcount+1)))) ${flavornames[$fcount]}"
+    fcount=$(($fcount+1))
+  done
+
+  echo -e ""
+  read -p "--> Device flavor: " flavorchoice
+
+  while [[ ! "$flavorchoice" =~ ^[1-9]+$ || "$flavorchoice" -gt $flength ]]; do
+    read -p "--> Enter an integer representing one of the $flength choices above: " flavorchoice
+  done
+
+  flavorid=${flavorids[$(($flavorchoice-1))]}
+  flavorname=${flavornames[$(($flavorchoice-1))]}
+  unset fcount
+
   echo -e "\n--> Which type of device will it be?"
   PS3=$'\n'"--> Device type: "
   select devicetype in "Volume" "Local"; do
@@ -145,7 +165,7 @@ if [ "$1" == "boot" ]; then
     esac
   done
 
-  while [ -z $servername ]; do
+  while [ -z "$servername" ]; do
     echo -e ""
     read -p "--> What will you name this server? " servername
   done
