@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# > osh <
+#
+# Helpers for the OpenStack API. Because who can remember all those flags?
+# james@da.ydrea.ms
+
+vrs='v0.1'
+lastchange='1/10/15'
+
+echo -e "\n--> osh $vrs $lastchange <--"
+
+OLD_PS3=$PS3
+PS3="?  "
+
+# boot an instance
+if [ "$1" == "boot" ]; then
+  if [ "$2" == "ephemeral" ]; then
+    echo -e "It's ephemeral"
+  elif [ "$2" == "persistent" ]; then
+    echo -e "It's persistent"
+  else
+    echo -e "--> Will this be an ephemeral or a persistent instance?"
+    select boottype in "Ephemeral" "Persistent"; do
+      case $boottype in
+        Ephemeral ) boottype="ephemeral"; echo -e "Now it's $boottype"; break;;
+        Persistent ) boottype="persistent"; echo -e "Now it's $boottype"; exit;;
+      esac
+    done
+  fi
+fi
+
+PS3=$OLD_PS3
