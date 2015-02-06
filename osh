@@ -6,11 +6,17 @@
 # james@da.ydrea.ms
 
 vrs='v0.1'
-lastchange='1/11/15'
+lastchange='2/6/15'
 
 echo -e "\n--> osh $vrs $lastchange <--"
 
 OLD_PS3=$PS3
+
+
+### MAKE SURE WE'RE AUTHENTICATED WITH NOVA
+### END MAKE SURE WE'RE AUTHENTICATED WITH NOVA
+
+
 
 ### BOOT AN INSTANCE ###
 
@@ -44,39 +50,15 @@ unset fcount
 
 rm -P flavorlist.txt
 
-function boot_ephemeral () {
-  echo -e "--> Dotmatic says it's ephemeral."
-}
-
-function boot_persistent () {
-  echo -e "--> Julio Iglesias says it's persistent."
-}
-
-if [ "$1" == "boot" ]; then
-  if [ "$2" == "ephemeral" ]; then
-    boottype="ephemeral"
-    boot_ephemeral
-    # nova boot --poll --flavor FLAVORNAME --image IMAGESTRING --key-name KEYNAME SERVERNAME
-  elif [ "$2" == "persistent" ]; then
-    boottype="persistent"
-    boot_persistent
-    # nova boot --poll --flavor FLAVORNAME --key-name KEYNAME --block-device source=DEVICESOURCE,id=SOURCEID,dest=DEVICETYPE,size=STORAGESIZE,shutdown=PRESERVE,bootindex=BOOTINDEX SERVERNAME
-  else
-    echo -e "\n--> Will this be an ephemeral or a persistent instance? "
-    PS3=$'\n'"--> Instance type: "
-    select boottype in "Ephemeral" "Persistent"; do
-      case $boottype in
-        Ephemeral ) boottype="ephemeral"; break;;
-        Persistent ) boottype="persistent"; break;;
-      esac
-    done
-  fi
-
+# boot function helpers
+function get_key () {
   while [ -z "$keyname" ]; do
     echo -e ""
     read -p "--> Which key should this volume use? " keyname
   done
+}
 
+function make_block_device () {
   echo -e "\n--> Create the block device from a/an ..."
   PS3=$'\n'"--> Device source: "
   select devicesource in "Volume" "Snapshot" "Image" "Blank"; do
@@ -109,7 +91,9 @@ if [ "$1" == "boot" ]; then
     imagestring=${imagestrings[$(($imagechoice-1))]}
     unset icount
   fi
+}
 
+function set_flavor () {
   fcount=0
   flength=${#flavornames[*]}
   echo -e "\n--> Choose from your available flavors:"
@@ -129,7 +113,9 @@ if [ "$1" == "boot" ]; then
   flavorid=${flavorids[$(($flavorchoice-1))]}
   flavorname=${flavornames[$(($flavorchoice-1))]}
   unset fcount
+}
 
+function get_devicetype () {
   echo -e "\n--> Which type of device will it be?"
   PS3=$'\n'"--> Device type: "
   select devicetype in "Volume" "Local"; do
@@ -138,7 +124,9 @@ if [ "$1" == "boot" ]; then
       Local ) devicetype="local"; break;;
     esac
   done
+}
 
+function set_storagesize () {
   echo -e ""
   read -p "--> How many gigabytes of storage? Default is 80: " storagesize
   if [ -z "$storagesize" ]; then
@@ -147,7 +135,9 @@ if [ "$1" == "boot" ]; then
   while [[ ! "$storagesize" =~ ^[0-9]+$ ]]; do
     read -p "--> The storage size should be an integer. Default is 80 gigabytes: " storagesize
   done
+}
 
+function set_bootindex () {
   while [ -z "$bootindex" ]; do
     echo -e ""
     read -p "--> Boot index? (Enter 0 to boot from this volume.): " bootindex
@@ -155,7 +145,9 @@ if [ "$1" == "boot" ]; then
   while [[ ! "$bootindex" =~ ^[0-9]+$ ]]; do
     read -p "--> The boot index should be an integer. (Enter 0 to boot from this volume.): " bootindex
   done
+}
 
+function set_preserve () {
   echo -e "\n--> Preserve the volume when the instance is shut down?"
   PS3=$'\n'"--> Preserve on shutdown? "
   select preserve in "Yes" "No"; do
@@ -164,11 +156,64 @@ if [ "$1" == "boot" ]; then
       No ) preserve="remove"; break;;
     esac
   done
+}
 
+function set_servername () {
   while [ -z "$servername" ]; do
     echo -e ""
     read -p "--> What will you name this server? " servername
   done
-fi
+}
+
+
+
+# boot functions
+function boot_ephemeral () {
+  get_key
+  set_flavor
+  make_block_device
+  set_servername
+  nova boot --poll --flavor "$flavorname" --image "$imagestring" --key-name "$keyname" "$servername"
+}
+
+function boot_persistent () {
+  get_key
+  set_flavor
+  make_block_device
+  set_storagesize
+  set_preserve
+  set_bootindex
+  set_servername
+  nova boot --poll --flavor "$flavorname" --key-name "$keyname" --block-device source="$devicesource",id="$sourceid",dest="$devicetype",size="$storagesize",shutdown="$preserve",bootindex="$bootindex" "$servername"
+}
+
+
+if [ "$1" == "boot" ]; then
+  # collect persistence type
+  if [ "$2" == "ephemeral" ]; then
+    boottype="ephemeral"
+  elif [ "$2" == "persistent" ]; then
+    boottype="persistent"
+  else
+    echo -e "\n--> Will this be an ephemeral or a persistent instance? "
+    PS3=$'\n'"--> Instance type: "
+    select boottype in "Ephemeral" "Persistent"; do
+      case $boottype in
+        Ephemeral ) boottype="ephemeral"; break;;
+        Persistent ) boottype="persistent"; break;;
+      esac
+    done
+  fi # end collecting persistence type
+
+  if [ "$boottype" == "ephemeral" ]; then
+    boot_ephemeral
+  fi
+
+  if [ "$boottype" == "persistent" ]; then
+    boot_persistent
+  fi
+fi # end main
+
+### END BOOT AN INSTANCE ###
 
 PS3=$OLD_PS3
