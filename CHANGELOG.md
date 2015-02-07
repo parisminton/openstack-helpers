@@ -8,6 +8,8 @@ Changelog
 
 1. Exit and warn when the user hasn't signed in to OpenStack.
 
+2. `osh delete` will delete a running instance.
+
 
 **2/6/15**
 

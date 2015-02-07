@@ -5,26 +5,29 @@
 # Helpers for the OpenStack API. Because who can remember all those flags?
 # james@da.ydrea.ms
 
-vrs='v0.1'
+vrs='v0.2'
 lastchange='2/7/15'
 
 echo -e "\n--> osh $vrs $lastchange <--"
 
 OLD_PS3=$PS3
 
-
+#
 ### MAKE SURE OUR ENVIRONMENT VARIABLES ARE SET
+#
 
 if [ -z "$OS_AUTH_URL" ]; then
-  echo -e "\n--> $(tput setaf 1)Uh-oh.$(tput sgr0) osh can't run until you've signed in with OpenStack and set your environment variables. (In some systems, you can do this by running $(tput setaf 1)\`source <path-to-.openrc.sh>\`$(tput sgr0)).\n"
+  echo -e "\n--> $(tput setaf 1)Uh-oh.$(tput sgr0) osh can't run until you've signed in with OpenStack and set your environment variables.
+  \n(In some systems, you can do this by running $(tput setaf 1)\`source <path-to-.openrc.sh>\`$(tput sgr0)).\n"
   exit 1
 fi
 
 ### END MAKE SURE OUR ENVIRONMENT VARIABLES ARE SET
 
 
-
+#
 ### BOOT AN INSTANCE ###
+#
 
 # fetch and parse available images
 function getAvailableImages () {
@@ -33,7 +36,7 @@ function getAvailableImages () {
   icount=0
 
   # the image ID is a 36-character string with dashes at indices 8, 13, 18 and 23
-  for id in $(sed -nE 's/.*([a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < imagelist.txt); do
+  for id in $(sed -nE 's/.*([a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < imagelist.txt); do
     imageids[$icount]="$id"
     imagestrings[$icount]=$(sed -nE "/$id/ s/.*$id \| ([a-zA-Z0-9\.\-]+) +\|.*$/\1/p" < imagelist.txt)
     icount=$(($icount+1))
@@ -100,6 +103,7 @@ function makeBlockDevice () {
     sourceid=${imageids[$(($imagechoice-1))]}
     imagestring=${imagestrings[$(($imagechoice-1))]}
     unset icount
+    unset ilength
   fi
 }
 
@@ -225,8 +229,77 @@ if [ "$1" == "boot" ]; then
   if [ "$boottype" == "persistent" ]; then
     boot_persistent
   fi
+  exit 0
 fi # end main
 
 ### END BOOT AN INSTANCE ###
+
+
+#
+### DELETE AN INSTANCE ###
+#
+
+# fetch and parse available instances
+function getRunningInstances () {
+  nova list > instancelist.txt
+
+  instcount=0
+
+  # the instance ID is a 36-character string with dashes at indices 8, 13, 18 and 23
+  for id in $(sed -nE 's/.*([a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < instancelist.txt); do
+    instanceids[$instcount]="$id"
+    instancenames[$instcount]=$(sed -nE "/$id/ s/.*$id \| ([a-zA-Z0-9_\.\-]+) +\|.*$/\1/p" < instancelist.txt)
+    instcount=$(($instcount+1))
+  done
+  unset instcount
+
+  rm -P instancelist.txt
+}
+
+function deleteInstance () {
+  instcount=0
+  instlength=${#instancenames[*]}
+  echo -e "\n--> Choose an instance to delete:"
+
+  while [ $instcount -lt $instlength ]; do
+    echo -e "$(echo $(($instcount+1)))) ${instancenames[$instcount]}"
+    instcount=$(($instcount+1))
+  done
+
+  echo -e ""
+  read -p "--> Delete instance: " instancechoice
+
+  while [[ ! "$instancechoice" =~ ^[1-9]+$ || "$instancechoice" -gt $instlength ]]; do
+    read -p "--> Enter an integer representing one of the $instlength choices above: " instancechoice
+  done
+
+  unset instcount
+  unset instlength
+
+  instanceid=${instanceids[$(($instancechoice-1))]}
+  instancename=${instancenames[$(($instancechoice-1))]}
+
+  PS3=$'\n'"--> Are you sure you want to delete $instancename? "
+  select delete in "Yes" "No"; do
+    case $delete in
+      Yes ) delete="delete"; break;;
+      No ) delete="preserve"; break;;
+    esac
+  done
+
+  if [ "$delete" == "delete" ]; then
+    nova delete $instancename
+    echo -e "\n--> OK. $instancename has been deleted."
+  else
+    echo -e "\n--> OK. I won't delete $instancename."
+  fi
+}
+
+if [ "$1" == "delete" ]; then
+  getRunningInstances
+  deleteInstance
+fi
+
+### END DELETE AN INSTANCE ###
 
 PS3=$OLD_PS3
