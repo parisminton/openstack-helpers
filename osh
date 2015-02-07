@@ -6,15 +6,21 @@
 # james@da.ydrea.ms
 
 vrs='v0.1'
-lastchange='2/6/15'
+lastchange='2/7/15'
 
 echo -e "\n--> osh $vrs $lastchange <--"
 
 OLD_PS3=$PS3
 
 
-### MAKE SURE WE'RE AUTHENTICATED WITH NOVA
-### END MAKE SURE WE'RE AUTHENTICATED WITH NOVA
+### MAKE SURE OUR ENVIRONMENT VARIABLES ARE SET
+
+if [ -z "$OS_AUTH_URL" ]; then
+  echo -e "\n--> $(tput setaf 1)Uh-oh.$(tput sgr0) osh can't run until you've signed in with OpenStack and set your environment variables. (In some systems, you can do this by running $(tput setaf 1)\`source <path-to-.openrc.sh>\`$(tput sgr0)).\n"
+  exit 1
+fi
+
+### END MAKE SURE OUR ENVIRONMENT VARIABLES ARE SET
 
 
 
