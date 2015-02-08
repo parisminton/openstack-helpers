@@ -6,7 +6,7 @@
 # james@da.ydrea.ms
 
 vrs='v0.2'
-lastchange='2/7/15'
+lastchange='2/8/15'
 
 echo -e "\n--> osh $vrs $lastchange <--"
 
@@ -249,14 +249,20 @@ function getRunningInstances () {
   for id in $(sed -nE 's/.*([a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}).*/\1/p' < instancelist.txt); do
     instanceids[$instcount]="$id"
     instancenames[$instcount]=$(sed -nE "/$id/ s/.*$id \| ([a-zA-Z0-9_\.\-]+) +\|.*$/\1/p" < instancelist.txt)
-    instcount=$(($instcount+1))
   done
-  unset instcount
-
   rm -P instancelist.txt
+
+  if [ -z "${instanceids[0]}" ]; then
+    echo -e "\n--> There are $(tput setaf 1)no running volumes$(tput sgr0). Nothing to delete."
+    exit 1
+  else
+    instcount=$(($instcount+1))
+  fi
+  
+  unset instcount
 }
 
-function deleteInstance () {
+function detectInstance () {
   instcount=0
   instlength=${#instancenames[*]}
   echo -e "\n--> Choose an instance to delete:"
@@ -278,7 +284,9 @@ function deleteInstance () {
 
   instanceid=${instanceids[$(($instancechoice-1))]}
   instancename=${instancenames[$(($instancechoice-1))]}
+}
 
+function deleteInstance () {
   PS3=$'\n'"--> Are you sure you want to delete $instancename? "
   select delete in "Yes" "No"; do
     case $delete in
@@ -288,15 +296,17 @@ function deleteInstance () {
   done
 
   if [ "$delete" == "delete" ]; then
-    nova delete $instancename
-    echo -e "\n--> OK. $instancename has been deleted."
+    # nova delete $instancename
+    echo -e "\n--> $(tput setaf 4)OK.$(tput sgr0) $instancename has been deleted."
   else
-    echo -e "\n--> OK. I won't delete $instancename."
+    echo -e "\n--> $(tput setaf 4)OK.$(tput sgr0) I won't delete $instancename."
   fi
+  exit 0
 }
 
 if [ "$1" == "delete" ]; then
   getRunningInstances
+  detectInstance
   deleteInstance
 fi
 

@@ -4,6 +4,11 @@ osh
 Changelog
 ---------
 
+**2/8/15**
+
+1. `osh delete` short-circuits and reports if there are no running instances to kill.
+
+
 **2/7/15**
 
 1. Exit and warn when the user hasn't signed in to OpenStack.
